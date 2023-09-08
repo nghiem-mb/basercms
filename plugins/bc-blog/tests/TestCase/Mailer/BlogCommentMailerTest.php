@@ -30,6 +30,8 @@ use CakephpFixtureFactories\Scenario\ScenarioAwareTrait;
 /**
  * BlogCommentMailerTest
  * @property  BlogCommentMailer $BlogCommentMailer
+ * @property BlogCommentsService $BlogCommentsService
+
  *
  */
 class BlogCommentMailerTest extends BcTestCase
@@ -48,6 +50,7 @@ class BlogCommentMailerTest extends BcTestCase
     public function setUp(): void
     {
         parent::setUp();
+        $this->BlogCommentsService = new BlogCommentsService();
     }
 
     /**
@@ -76,52 +79,32 @@ class BlogCommentMailerTest extends BcTestCase
             '/news/' // url
         );
         $this->loadFixtureScenario(BlogCommentsServiceScenario::class);
-        $blogCommentService = $this->getService(BlogCommentsServiceInterface::class);
-        $blogComment = $blogCommentService->get(1);
+        $blogComment = $this->BlogCommentsService->get(1);
         $blogPostsService = $this->getService(BlogPostsServiceInterface::class);
         $blogPost = $blogPostsService->get(1);
         $contentService = $this->getService(ContentsServiceInterface::class);
         $content = $blogPost->blog_content->content;
         $site = $content->site;
         $postUrl = $contentService->getUrl($content->url .  '/archives/' . $blogPost->no, true, $site->use_subdomain);
+        $mailer = $this->execPrivateMethod($this->BlogCommentsService, 'getMailer', ['BcBlog.BlogComment']);
         try {
-            $result = $this->execPrivateMethod($blogCommentService, 'getMailer("BcBlog.BlogComment")->send',
+            $result = $mailer->send('sendCommentToAdmin',
                 [
-                    'sendCommentToAdmin',
+                    $site->title,
                     [
-                        $site->title,
-                        [
-                            'blogComment' => $blogComment,
-                            'blogPost' => $blogPost,
-                            'contentTitle' => $content->title,
-                            'postUrl' => $postUrl,
-                            'adminUrl' => Router::url([
-                                'plugin' => 'BcBlog',
-                                'prefix' => 'Admin',
-                                'controller' => 'BlogComments',
-                                'action' => 'index',
-                                $blogComment->blog_content_id
-                            ], true)
-                        ]
+                        'blogComment' => $blogComment,
+                        'blogPost' => $blogPost,
+                        'contentTitle' => $content->title,
+                        'postUrl' => $postUrl,
+                        'adminUrl' => Router::url([
+                            'plugin' => 'BcBlog',
+                            'prefix' => 'Admin',
+                            'controller' => 'BlogComments',
+                            'action' => 'index',
+                            $blogComment->blog_content_id
+                        ], true)
                     ]
                 ]);
-//            $result = $blogCommentService->getMailer('BcBlog.BlogComment')->send('sendCommentToAdmin',
-//                [
-//                    $site->title,
-//                    [
-//                        'blogComment' => $blogComment,
-//                        'blogPost' => $blogPost,
-//                        'contentTitle' => $content->title,
-//                        'postUrl' => $postUrl,
-//                        'adminUrl' => Router::url([
-//                            'plugin' => 'BcBlog',
-//                            'prefix' => 'Admin',
-//                            'controller' => 'BlogComments',
-//                            'action' => 'index',
-//                            $blogComment->blog_content_id
-//                        ], true)
-//                    ]
-//                ]);
             dd($result);
         } catch (\Throwable $e) {
             throw $e;
